@@ -1,13 +1,20 @@
 package org.example.hotelmanagementsystem.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Table(name = "room_bed")
-public class RoomBed {
+@Table(name = "room_type_beds")
+@Getter
+@Setter
+@AllArgsConstructor
+public class RoomTypeBed {
 
     @EmbeddedId
-    private RoomBedId id;
+    private RoomTypeBedId id;
 
     @ManyToOne
     @MapsId("roomTypeId")
@@ -19,14 +26,13 @@ public class RoomBed {
 
     private int quantity = 1;
 
-    public RoomBed() {}
+    public RoomTypeBed() {}
 
-    public RoomBed(RoomType roomType, BedType bedType, int quantity) {
+    public RoomTypeBed(RoomType roomType, BedType bedType, int quantity) {
         this.roomType = roomType;
         this.bedType = bedType;
-        this.id = new RoomBedId(roomType.getId(), bedType.getId());
+        this.id = new RoomTypeBedId(roomType.getId(), bedType.getId());
         this.quantity = quantity;
     }
 
-    // Геттеры, сеттеры
 }
