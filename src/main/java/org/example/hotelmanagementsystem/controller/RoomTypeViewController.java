@@ -59,7 +59,7 @@ public class RoomTypeViewController {
     @PostMapping("/{id}")
     public String update(@ModelAttribute RoomTypeUpdateDto dto) {
         roomTypeService.update(dto);
-        return "room-type-list";
+        return "redirect:/room-types";
     }
 
     // Удаление
