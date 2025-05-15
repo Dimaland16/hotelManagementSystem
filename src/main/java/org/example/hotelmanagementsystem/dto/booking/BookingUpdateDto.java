@@ -17,5 +17,6 @@ public class BookingUpdateDto {
     private String status;
     private Long guestId;
     private Long roomId;
+    private Long roomTypeId;
 
 }

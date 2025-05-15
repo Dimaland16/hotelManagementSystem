@@ -16,5 +16,6 @@ public class BookingCreateDto {
     private String status;
     private Long guestId;
     private Long roomId;
+    private Long roomTypeId;
 
 }

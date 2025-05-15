@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.hotelmanagementsystem.dto.booking.BookingCreateDto;
 import org.example.hotelmanagementsystem.dto.booking.BookingResponseDto;
 import org.example.hotelmanagementsystem.dto.booking.BookingUpdateDto;
+import org.example.hotelmanagementsystem.service.RoomTypeService;
 import org.example.hotelmanagementsystem.service.impl.BookingService;
 import org.example.hotelmanagementsystem.service.impl.RoomService;
 import org.example.hotelmanagementsystem.service.impl.UserService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class BookingViewController {
 
+    private final RoomTypeService roomTypeService;
     private final BookingService bookingService;
     private final UserService userService;
     private final RoomService roomService;
@@ -34,6 +36,8 @@ public class BookingViewController {
         model.addAttribute("users", userService.getAll());
         model.addAttribute("rooms", roomService.getAll());
         model.addAttribute("mode", "create");
+        model.addAttribute("roomTypes", roomTypeService.getAll());
+
         return "booking-form";
     }
 
@@ -54,11 +58,16 @@ public class BookingViewController {
         updateDto.setStatus(responseDto.getStatus());
         updateDto.setGuestId(responseDto.getGuestId());
         updateDto.setRoomId(responseDto.getRoomId());
+        updateDto.setRoomTypeId(responseDto.getRoomTypeId());
+
 
         model.addAttribute("bookingDto", updateDto);
         model.addAttribute("users", userService.getAll());
+        model.addAttribute("user", userService.getById(responseDto.getGuestId()));
         model.addAttribute("rooms", roomService.getAll());
         model.addAttribute("mode", "edit");
+        model.addAttribute("roomTypes", roomTypeService.getAll());
+
         return "booking-form";
     }
 

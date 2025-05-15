@@ -3,12 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <title th:text="${mode == 'edit' ? 'Редактировать бронь' : 'Добавить бронь'}">Форма</title>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <!-- Select2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+  <!-- jQuery + Select2 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <!-- Optional: Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
 
 </head>
 <body class="bg-light">
@@ -51,29 +58,54 @@
                      required />
             </div>
 
-            <!-- Гость -->
+            <!-- Сообщение об ошибке -->
+            <div id="dateError" class="text-danger mt-2" style="display: none;">
+              Дата выезда должна быть минимум на 1 день позже даты заезда
+            </div>
+
+            <!-- Поле для поиска гостя -->
             <div class="mb-3">
-              <label for="guest" class="form-label">Гость</label>
-              <select id="guest" class="form-select" th:field="*{guestId}" required>
-                <option th:each="user : ${users}"
-                        th:value="${user.id}"
-                        th:text="${user.lastName}"
-                        th:selected="${user.id} == ${bookingDto.guestId}">
-                  [Гость]
+              <label for="guestSearch" class="form-label">Гость</label>
+              <input type="text"
+                     id="guestSearch"
+                     class="form-control"
+                     th:value="${mode == 'edit' ? user.lastName + ' ' + user.firstName + ' (' + user.passportNumber + ')' : ''}"
+                     placeholder="Начните вводить имя, фамилию или паспорт..."
+                     autocomplete="off" />
+              <input type="hidden" id="guestId" th:field="*{guestId}" />
+              <div id="guestResults" class="list-group" style="position: absolute; z-index: 1000; width: 93%; max-height: 200px; overflow-y: auto; display: none;"></div>
+            </div>
+
+            <!-- Тип номера -->
+            <div class="mb-3">
+              <label for="roomType" class="form-label">Тип номера</label>
+              <select id="roomType"
+                      class="form-select"
+                      th:field="*{roomTypeId}"
+                      required>
+                <option value="">-- Выберите тип --</option>
+                <option th:each="type : ${roomTypes}"
+                        th:value="${type.id}"
+                        th:text="${type.name}">
                 </option>
               </select>
             </div>
 
+            <!-- Скрытое поле с данными -->
+            <input type="hidden" id="mode" th:value="${mode}" />
+            <input type="hidden" id="currentRoomId" th:value="${bookingDto.roomId}" />
+            <input type="hidden" id="currentRoomTypeId" th:value="${bookingDto.roomTypeId}" />
+            <div th:if="${mode == 'edit'}">
+              <input type="hidden" id="currentBookingId" th:value="${bookingDto.id}" />
+            </div>
             <!-- Номер -->
             <div class="mb-3">
-              <label for="room" class="form-label">Номер</label>
-              <select id="room" class="form-select" th:field="*{roomId}" required>
-                <option th:each="room : ${rooms}"
-                        th:value="${room.id}"
-                        th:text="${room.roomNumber + ' (' + room.roomTypeName + ')'}"
-                        th:selected="${room.id} == ${bookingDto.roomId}">
-                  [Номер]
-                </option>
+              <label for="roomId" class="form-label">Номер</label>
+              <select id="roomId"
+                      class="form-select"
+                      th:field="*{roomId}"
+                      required>
+                <option value="">-- Сначала выберите тип --</option>
               </select>
             </div>
 
@@ -117,6 +149,7 @@
 
 <!-- Bootstrap JS + Validation -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
 
 <!-- Валидация формы -->
 <script>
@@ -136,6 +169,224 @@
     })
   })()
 </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const mode = document.getElementById('mode').value;
+    const currentRoomId = document.getElementById('currentRoomId').value;
+    const currentRoomTypeId = document.getElementById('currentRoomTypeId').value;
 
+    const $checkIn = $('#checkInDate');
+    const $checkOut = $('#checkOutDate');
+
+    console.log("Mode:", mode);
+    console.log("Current Room ID:", currentRoomId);
+    console.log("Current Room Type ID:", currentRoomTypeId);
+
+    if (mode === 'edit' && currentRoomId && currentRoomTypeId) {
+      const currentBookingId = document.getElementById('currentBookingId')?.value || null;
+      const checkIn = $checkIn.val();
+      const checkOut = $checkOut.val();
+
+      if (!checkIn || !checkOut) {
+        alert("Не хватает дат заезда/выезда");
+        return;
+      }
+
+      loadRoomsByType(currentRoomTypeId, currentRoomId, checkIn, checkOut, currentBookingId);
+    }
+
+    function loadRoomsByType(roomTypeId, selectedRoomId = null, checkIn = null, checkOut = null, bookingId = null) {
+      const $roomId = $('#roomId');
+      $roomId.empty().append('<option>-- Загрузка... --</option>');
+
+      $.get('/api/rooms/by-type', {
+        typeId: roomTypeId,
+        checkIn: checkIn,
+        checkOut: checkOut,
+        bookingId: bookingId
+      }, function (data) {
+        $roomId.empty();
+
+        if (!data || data.length === 0) {
+          $roomId.append('<option disabled>Нет доступных номеров</option>');
+          return;
+        }
+
+        data.forEach(function (room) {
+          $roomId.append(
+                  `<option value="${room.id}">${room.roomNumber}</option>`
+          );
+        });
+
+        if (selectedRoomId) {
+          $roomId.val(selectedRoomId);
+        }
+      });
+    }
+
+  });
+</script>
+<script>
+  $(document).ready(function () {
+
+    const $checkIn = $('#checkInDate');
+    const $checkOut = $('#checkOutDate');
+    const $roomType = $('#roomType');
+    const $errorDiv = $('#dateError');
+
+    function validateDates() {
+      const checkIn = new Date($checkIn.val());
+      const checkOut = new Date($checkOut.val());
+
+      if (checkIn >= checkOut) {
+        $errorDiv.show();
+        return false;
+      } else {
+        $errorDiv.hide();
+        return true;
+      }
+    }
+
+    function loadRoomTypesByDates(checkIn, checkOut) {
+      if (!checkIn || !checkOut) return;
+
+      $.get('/api/rooms/types/by-dates', { checkIn: checkIn, checkOut: checkOut }, function (data) {
+        $roomType.empty();
+        console.log('Полученные типы:', data);
+
+
+        if (data.length === 0) {
+          $roomType.append('<option disabled>Нет доступных типов</option>');
+          return;
+        }
+
+        data.forEach(function (type) {
+          $roomType.append(
+                  `<option value="${type.id}">${type.name} (${type.availableRoomsCount} шт.)</option>`
+          );
+        });
+
+        const firstTypeId = $roomType.find('option').first().val();
+        if (firstTypeId) {
+          $roomType.val(firstTypeId);
+          loadRoomsByType(firstTypeId);
+        }
+      });
+    }
+
+    $checkIn.on('change', function () {
+      if (validateDates()) {
+        const checkIn = $(this).val();
+        const checkOut = $checkOut.val();
+        if (checkIn && checkOut) {
+          loadRoomTypesByDates(checkIn, checkOut);
+        }
+      }
+    });
+
+    $checkOut.on('change', function () {
+      if (validateDates()) {
+        const checkIn = $checkIn.val();
+        const checkOut = $(this).val();
+        if (checkIn && checkOut) {
+          loadRoomTypesByDates(checkIn, checkOut);
+        }
+      }
+    });
+
+    const $roomId = $('#roomId');
+
+    function loadRoomsByType(roomTypeId) {
+      const checkIn = $checkIn.val();
+      const checkOut = $checkOut.val();
+      $roomId.empty().append('<option>-- Загрузка... --</option>');
+
+      if (!checkIn || !checkOut) {
+        alert("Выберите даты заезда и выезда");
+        return;
+      }
+
+      $.get('/api/rooms/by-type', {
+        typeId: roomTypeId,
+        checkIn: checkIn,
+        checkOut: checkOut
+      }, function (data) {
+        $roomId.empty();
+
+        if (data.length === 0) {
+          $roomId.append('<option disabled>Нет доступных номеров</option>');
+          return;
+        }
+
+        data.forEach(function (room) {
+          $roomId.append(
+                  `<option value="${room.id}">${room.roomNumber}</option>`
+          );
+        });
+
+      });
+    }
+
+    $roomType.on('change', function () {
+      const roomTypeId = $(this).val();
+      if (!roomTypeId) return;
+
+      loadRoomsByType(roomTypeId);
+    });
+
+    const guestResults = $('#guestResults');
+
+    $('#guestSearch').on('input', function () {
+      const term = $(this).val();
+      if (term.length < 1) {
+        guestResults.hide();
+        return;
+      }
+
+      // Запрашиваем данные с сервера
+      $.get('/api/users/search', { term: term }, function (data) {
+        guestResults.empty();
+        if (data.length === 0) {
+          guestResults.append('<div class="list-group-item">Не найдено</div>');
+          guestResults.show();
+          return;
+        }
+
+        data.forEach(function (user) {
+          guestResults.append(
+                  `<a href="#" class="list-group-item list-group-item-action"
+                           data-id="${user.id}">${user.text}</a>`
+          );
+        });
+
+        guestResults.show();
+      });
+    });
+
+    guestResults.on('click', 'a', function (e) {
+      e.preventDefault();
+      const selected = $(this);
+      const userId = selected.data('id');
+      const userText = selected.text();
+
+      $('#guestSearch').val(userText);
+      $('#guestId').val(userId);
+      guestResults.hide();
+    });
+
+    $(document).on('click', function (e) {
+      if (!$(e.target).closest('#guestSearch, #guestResults').length) {
+        guestResults.hide();
+      }
+    });
+    // Перед отправкой формы
+    $('form').on('submit', function (e) {
+      if (!validateDates()) {
+        e.preventDefault(); // блокируем отправку
+        alert("Дата выезда должна быть не ранее чем дата заезда");
+      }
+    });
+  });
+</script>
 </body>
 </html>

@@ -2,30 +2,26 @@ package org.example.hotelmanagementsystem.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.example.hotelmanagementsystem.dto.BedInRoomTypeDto;
+import org.example.hotelmanagementsystem.dto.RoomTypeAvailabilityDto;
 import org.example.hotelmanagementsystem.dto.roomType.RoomTypeCreateDto;
 import org.example.hotelmanagementsystem.dto.roomType.RoomTypeResponseDto;
 import org.example.hotelmanagementsystem.dto.roomType.RoomTypeUpdateDto;
-import org.example.hotelmanagementsystem.entity.Amenity;
-import org.example.hotelmanagementsystem.entity.BedType;
-import org.example.hotelmanagementsystem.entity.RoomType;
-import org.example.hotelmanagementsystem.entity.RoomTypeBed;
+import org.example.hotelmanagementsystem.entity.*;
 import org.example.hotelmanagementsystem.mapper.RoomTypeMapper;
-import org.example.hotelmanagementsystem.repository.AmenityRepository;
-import org.example.hotelmanagementsystem.repository.BedTypeRepository;
-import org.example.hotelmanagementsystem.repository.RoomTypeRepository;
+import org.example.hotelmanagementsystem.repository.*;
 import org.example.hotelmanagementsystem.service.RoomTypeService;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.LocalDate;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class RoomTypeServiceImpl implements RoomTypeService {
 
     private final RoomTypeRepository roomTypeRepository;
+    private final RoomRepository roomRepository;
+    private final BookingRepository bookingRepository;
     private final BedTypeRepository bedTypeRepository;
     private final AmenityRepository amenityRepository;
     private final RoomTypeMapper roomTypeMapper;
@@ -109,5 +105,39 @@ public class RoomTypeServiceImpl implements RoomTypeService {
         RoomType roomType = roomTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Room type not found"));
         return roomTypeMapper.toUpdateDto(roomType);
+    }
+
+    @Override
+    public List<RoomTypeAvailabilityDto> findAvailableTypes(LocalDate checkIn, LocalDate checkOut) {
+        List<RoomType> allTypes = roomTypeRepository.findAll();
+
+        return allTypes.stream()
+                .map(type -> {
+                    long availableCount = countAvailableRooms(type.getId(), checkIn, checkOut);
+
+                    if (availableCount > 0) {
+                        RoomTypeAvailabilityDto dto = new RoomTypeAvailabilityDto();
+                        dto.setId(type.getId());
+                        dto.setName(type.getName());
+                        dto.setAvailableRoomsCount((int) availableCount);
+                        return dto;
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private long countAvailableRooms(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
+        List<Room> rooms = roomRepository.findByRoomType_Id(roomTypeId);
+
+        return rooms.stream()
+                .filter(room -> isRoomAvailable(room, checkIn, checkOut))
+                .count();
+    }
+
+    private boolean isRoomAvailable(Room room, LocalDate checkIn, LocalDate checkOut) {
+        List<Booking> bookings = bookingRepository.findByRoomIdAndCheckOutDateAfterAndCheckInDateBefore(room.getId(), checkIn, checkOut);
+        return bookings.isEmpty();
     }
 }

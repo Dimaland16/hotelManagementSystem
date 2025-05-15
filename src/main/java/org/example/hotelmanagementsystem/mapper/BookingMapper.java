@@ -30,6 +30,7 @@ public interface BookingMapper {
     @Mapping(source = "guest.passportNumber", target = "guestPassportNumber")
     @Mapping(source = "room.id", target = "roomId")
     @Mapping(source = "room.roomNumber", target = "roomNumber")
+    @Mapping(source = "room.roomType.id", target = "roomTypeId")
     @Mapping(source = "room.roomType.name", target = "roomTypeName")
     BookingResponseDto toResponseDto(Booking booking);
 }

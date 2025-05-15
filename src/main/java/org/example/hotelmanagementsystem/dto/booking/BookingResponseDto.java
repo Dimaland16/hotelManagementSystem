@@ -27,6 +27,7 @@ public class BookingResponseDto {
 
     private Long roomId;
     private String roomNumber;
-    private String roomTypeName;
 
+    private Long roomTypeId;
+    private String roomTypeName;
 }
