@@ -14,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/amenities")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 public class AmenityController {
 
     private final AmenityService amenityService;
