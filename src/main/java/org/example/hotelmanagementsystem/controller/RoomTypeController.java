@@ -14,14 +14,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/room-types")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class RoomTypeController {
 
     private final RoomTypeService roomTypeService;
 
     @GetMapping
-    public List<RoomTypeResponseDto> getAll() {
-        return roomTypeService.getAll();
+    public ResponseEntity<List<RoomTypeResponseDto>> getAll() {
+        return ResponseEntity.ok(roomTypeService.getAll());
     }
 
     @GetMapping("/{id}")

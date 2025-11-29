@@ -1,5 +1,6 @@
 package org.example.hotelmanagementsystem.service.impl;
 
+import com.corundumstudio.socketio.SocketIOServer;
 import lombok.RequiredArgsConstructor;
 import org.example.hotelmanagementsystem.dto.BedInRoomTypeDto;
 import org.example.hotelmanagementsystem.dto.RoomTypeAvailabilityDto;
@@ -25,6 +26,7 @@ public class RoomTypeServiceImpl implements RoomTypeService {
     private final BedTypeRepository bedTypeRepository;
     private final AmenityRepository amenityRepository;
     private final RoomTypeMapper roomTypeMapper;
+    private final SocketIOServer socketServer; // 👈 Внедряем наш сервер
 
 
     @Override
@@ -60,7 +62,9 @@ public class RoomTypeServiceImpl implements RoomTypeService {
         roomType.setAmenities(amenities);
 
         RoomType saved = roomTypeRepository.save(roomType);
-        return roomTypeMapper.toResponseDto(saved);
+        RoomTypeResponseDto responseDto = roomTypeMapper.toResponseDto(saved);
+        socketServer.getBroadcastOperations().sendEvent("room_type_created", responseDto);
+        return responseDto;
     }
 
     @Override
@@ -92,12 +96,15 @@ public class RoomTypeServiceImpl implements RoomTypeService {
         existing.setAmenities(amenities);
 
         RoomType updated = roomTypeRepository.save(existing);
-        return roomTypeMapper.toResponseDto(updated);
+        RoomTypeResponseDto responseDto = roomTypeMapper.toResponseDto(updated);
+        socketServer.getBroadcastOperations().sendEvent("room_type_updated", responseDto);
+        return responseDto;
     }
 
     @Override
     public void deleteById(Long id) {
         roomTypeRepository.deleteById(id);
+        socketServer.getBroadcastOperations().sendEvent("room_type_deleted", id);
     }
 
     @Override

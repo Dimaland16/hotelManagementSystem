@@ -17,7 +17,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring", uses = { BedTypeMapper.class, AmenityMapper.class })
-public interface RoomTypeMapper {
+public interface  RoomTypeMapper {
 
     RoomTypeMapper INSTANCE = Mappers.getMapper(RoomTypeMapper.class);
 
